@@ -2,7 +2,7 @@
 @bg2: #2f313b;
 @font: #CACACC;
 @subfont: #696A6F;
-@pink: #EB4888;
+@turquoise: #48ebeb;
 @green: #24D05A;
 @yellow: #E9BC3F;
 @blue: #10A2F5; */
@@ -10,7 +10,7 @@
 body {
   background: #fff;
   color: #000;
-  font-family: 'Roboto Mono', monospace;
+  font-family: "Roboto Mono", monospace;
   font-size: 0.9em;
   display: flex;
   justify-content: center;
@@ -44,7 +44,7 @@ ul {
 }
 
 ul li::before {
-  content: '·';
+  content: "·";
   display: inline-block;
   border-radius: 100%;
   margin: 0 0.5em 0 0;
@@ -58,8 +58,8 @@ ul li::before {
   color: #24d05a;
 }
 
-.pink li::before {
-  color: #eb4888;
+.turquoise li::before {
+  color: #48ebeb;
 }
 
 .yellow li::before {
@@ -103,12 +103,12 @@ body.dark-mode a:hover {
   position: relative;
 }
 
-.dark-mode-toggler input[type='checkbox'] {
+.dark-mode-toggler input[type="checkbox"] {
   display: none;
 }
 
-.dark-mode-toggler input[type='checkbox'] + label::before {
-  content: '';
+.dark-mode-toggler input[type="checkbox"] + label::before {
+  content: "";
   display: block;
   height: 26px;
   width: 60px;
@@ -120,8 +120,8 @@ body.dark-mode a:hover {
   left: -65px;
 }
 
-.dark-mode-toggler input[type='checkbox'] + label::after {
-  content: '';
+.dark-mode-toggler input[type="checkbox"] + label::after {
+  content: "";
   display: block;
   height: 20px;
   width: 20px;
@@ -134,11 +134,11 @@ body.dark-mode a:hover {
   transition: all 0.4s ease-in;
 }
 
-.dark-mode-toggler input[type='checkbox']:checked + label::before {
+.dark-mode-toggler input[type="checkbox"]:checked + label::before {
   background: #fff;
   border: 2px solid #96979c;
 }
-.dark-mode-toggler input[type='checkbox']:checked + label::after {
+.dark-mode-toggler input[type="checkbox"]:checked + label::after {
   left: -28px;
   background: #fff;
   border: 2px solid #96979c;
