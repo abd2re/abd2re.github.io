@@ -1,58 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <title>Abdoul Toure</title>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Software Engineer. Montreal. Student." />
-    <link rel="apple-touch-icon" sizes="180x180" href="images/logo.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="images/logo.png" />
-    <link rel="icon" type="image/png" href="images/logo.png" />
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body class="dark-mode">
-    <div class="container">
-      <h1>Abdoul Wahab Toure</h1>
-      <h2>Computer Science Student @McGill</h2>
-      <p>
-        Hi, I'm Abdoul. <br />
-        I am a student at McGill University studying Computer Science and
-        Statistics.
-      </p>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Mobile Music Player</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-color: #1e1e1e;
+            --accent-color: #1db954;
+            --text-color: #ffffff;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .player-container {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card-color);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            text-align: center;
+            box-sizing: border-box;
+        }
+        h2 { margin-top: 0; font-size: 1.4rem; }
+        #current-track {
+            margin: 15px 0;
+            color: var(--accent-color);
+            font-weight: bold;
+            word-wrap: break-word;
+        }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .playlist {
+            width: 100%;
+            max-width: 400px;
+            margin-top: 20px;
+            background: var(--card-color);
+            border-radius: 15px;
+            padding: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        .track-item {
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+        }
+        .track-item:last-child { border-bottom: none; }
+        .track-item:hover, .track-item.active {
+            background-color: #282828;
+            color: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
 
-      <div class="links">
-        <ul>
-          <span class="yellow">
-            <li>
-              <a href="mailto:ab.toure@mail.mcgill.ca">email</a>
-            </li>
-          </span>
-          <span class="green">
-            <li>
-              <a href="https://github.com/abd2re" target="_blank">github</a>
-            </li>
-          </span>
-          <span class="red">
-            <li>
-              <a href="https://linkedin.com/in/abd2re" target="_blank"
-                >linkedin</a
-              >
-            </li>
-          </span>
-          <span class="blue">
-            <li>
-              <a href="resume/Abdoul_Wahab_Toure_Resume.pdf" target="_blank"
-                >resume</a
-              >
-            </li>
-          </span>
-        </ul>
-      </div>
+    <div class="player-container">
+        <h2>Now Playing</h2>
+        <div id="current-track">No song selected</div>
+        <audio id="audio-player" controls></audio>
     </div>
-    <div class="dark-mode-toggler">
-      <input type="checkbox" id="toggler" />
-      <label for="toggler" aria-label="Toggler for Dark Mode"> </label>
-    </div>
-    <script src="./script.js"></script>
-  </body>
+
+    <div class="playlist" id="playlist">
+        </div>
+
+    <script>
+        // CHANGE THESE TWO LINES TO MATCH YOUR GITHUB FOR IT TO AUTO-SCAN
+        const githubUsername = "abd2re";
+        const repoName = "abd2re.github.io";
+        
+        const folderPath = "music"; // Your folder name in the repo
+
+        const audioPlayer = document.getElementById('audio-player');
+        const currentTrackDiv = document.getElementById('current-track');
+        const playlistDiv = document.getElementById('playlist');
+
+        // Fetch the file list from GitHub's Public API
+        async function loadSongs() {
+            const apiUrl = `https://api.github.com/repos/${githubUsername}/${repoName}/contents/${folderPath}`;
+            
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error('Could not fetch music folder. Check your username/repo config.');
+                
+                const files = await response.json();
+                
+                // Filter out anything that isn't an MP3
+                const mp3Files = files.filter(file => file.name.toLowerCase().endsWith('.mp3'));
+
+                if(mp3Files.length === 0) {
+                    playlistDiv.innerHTML = '<div class="track-item">No .mp3 files found in /music/</div>';
+                    return;
+                }
+
+                playlistDiv.innerHTML = ''; // Clear loading text
+
+                mp3Files.forEach((file, index) => {
+                    const item = document.createElement('div');
+                    item.classList.add('track-item');
+                    // Clean up the file name for display (removes .mp3 extension)
+                    item.textContent = file.name.replace(/\.mp3$/i, ''); 
+                    
+                    item.addEventListener('click', () => {
+                        playSong(file.download_url, item);
+                    });
+                    
+                    playlistDiv.appendChild(item);
+                });
+
+            } catch (error) {
+                console.error(error);
+                playlistDiv.innerHTML = '<div class="track-item" style="color:red;">Error loading songs. Check your settings.</div>';
+            }
+        }
+
+        function playSong(url, element) {
+            // Remove active style from all items
+            document.querySelectorAll('.track-item').forEach(el => el.classList.remove('active'));
+            
+            // Add active style to clicked item
+            element.classList.add('active');
+            
+            // Update player
+            currentTrackDiv.textContent = element.textContent;
+            audioPlayer.src = url;
+            audioPlayer.play();
+        }
+
+        // Initialize on page load
+        loadSongs();
+    </script>
+</body>
 </html>
