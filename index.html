@@ -42,6 +42,21 @@
             width: 100%;
             margin-top: 10px;
         }
+        .shuffle-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            width: 100%;
+        }
+        .shuffle-btn:active {
+            transform: scale(0.98);
+        }
         .playlist {
             width: 100%;
             max-width: 400px;
@@ -73,21 +88,26 @@
         <h2>Now Playing</h2>
         <div id="current-track">No song selected</div>
         <audio id="audio-player" controls></audio>
+        <button class="shuffle-btn" id="shuffle-btn">🔀 Shuffle Play</button>
     </div>
 
     <div class="playlist" id="playlist">
-        </div>
+        Loading your tracks...
+    </div>
 
     <script>
         // CHANGE THESE TWO LINES TO MATCH YOUR GITHUB FOR IT TO AUTO-SCAN
         const githubUsername = "abd2re";
         const repoName = "abd2re.github.io";
         
-        const folderPath = "music"; // Your folder name in the repo
+        const folderPath = "music"; 
 
         const audioPlayer = document.getElementById('audio-player');
         const currentTrackDiv = document.getElementById('current-track');
         const playlistDiv = document.getElementById('playlist');
+        const shuffleBtn = document.getElementById('shuffle-btn');
+
+        let songsList = []; // Global array to hold our filtered song data
 
         // Fetch the file list from GitHub's Public API
         async function loadSongs() {
@@ -95,28 +115,28 @@
             
             try {
                 const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error('Could not fetch music folder. Check your username/repo config.');
+                if (!response.ok) throw new Error('Could not fetch music folder.');
                 
                 const files = await response.json();
                 
                 // Filter out anything that isn't an MP3
-                const mp3Files = files.filter(file => file.name.toLowerCase().endsWith('.mp3'));
+                songsList = files.filter(file => file.name.toLowerCase().endsWith('.mp3'));
 
-                if(mp3Files.length === 0) {
+                if(songsList.length === 0) {
                     playlistDiv.innerHTML = '<div class="track-item">No .mp3 files found in /music/</div>';
                     return;
                 }
 
                 playlistDiv.innerHTML = ''; // Clear loading text
 
-                mp3Files.forEach((file, index) => {
+                songsList.forEach((file, index) => {
                     const item = document.createElement('div');
                     item.classList.add('track-item');
-                    // Clean up the file name for display (removes .mp3 extension)
+                    item.id = `track-${index}`; // Give each track an ID to find it later
                     item.textContent = file.name.replace(/\.mp3$/i, ''); 
                     
                     item.addEventListener('click', () => {
-                        playSong(file.download_url, item);
+                        playSong(index);
                     });
                     
                     playlistDiv.appendChild(item);
@@ -124,22 +144,48 @@
 
             } catch (error) {
                 console.error(error);
-                playlistDiv.innerHTML = '<div class="track-item" style="color:red;">Error loading songs. Check your settings.</div>';
+                playlistDiv.innerHTML = '<div class="track-item" style="color:red;">Error loading songs. Check settings.</div>';
             }
         }
 
-        function playSong(url, element) {
+        function playSong(index) {
+            if (songsList.length === 0) return;
+
+            const song = songsList[index];
+
             // Remove active style from all items
             document.querySelectorAll('.track-item').forEach(el => el.classList.remove('active'));
             
-            // Add active style to clicked item
-            element.classList.add('active');
+            // Add active style to current item
+            const currentElement = document.getElementById(`track-${index}`);
+            if (currentElement) {
+                currentElement.classList.add('active');
+                currentElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
             
-            // Update player
-            currentTrackDiv.textContent = element.textContent;
-            audioPlayer.src = url;
+            // Update player and play
+            currentTrackDiv.textContent = song.name.replace(/\.mp3$/i, '');
+            audioPlayer.src = song.download_url;
             audioPlayer.play();
         }
+
+        function playRandomSong() {
+            if (songsList.length === 0) return;
+            const randomIndex = Math.floor(Math.random() * songsList.length);
+            playSong(randomIndex);
+        }
+
+        // EVENT LISTENERS
+
+        // 1. Automatically play a random song when the current one ends
+        audioPlayer.addEventListener('ended', () => {
+            playRandomSong();
+        });
+
+        // 2. Shuffle button click handler
+        shuffleBtn.addEventListener('click', () => {
+            playRandomSong();
+        });
 
         // Initialize on page load
         loadSongs();
