@@ -62,11 +62,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            white-space: nowrap;
         }
         .btn:active {
             transform: scale(0.95);
         }
-        .btn.primary {
+        .btn.mode-active {
             background-color: var(--accent-color);
         }
         .playlist {
@@ -103,7 +104,7 @@
         
         <div class="controls">
             <button class="btn" id="prev-btn">⏮️ Prev</button>
-            <button class="btn primary" id="shuffle-btn">🔀 Shuffle</button>
+            <button class="btn mode-active" id="mode-btn">➡️ Sequential</button>
             <button class="btn" id="next-btn">⏭️ Next</button>
         </div>
     </div>
@@ -122,13 +123,22 @@
         const audioPlayer = document.getElementById('audio-player');
         const currentTrackDiv = document.getElementById('current-track');
         const playlistDiv = document.getElementById('playlist');
-        const shuffleBtn = document.getElementById('shuffle-btn');
+        const modeBtn = document.getElementById('mode-btn');
         const prevBtn = document.getElementById('prev-btn');
         const nextBtn = document.getElementById('next-btn');
 
         let songsList = []; 
         let currentIndex = -1;
-        let playbackHistory = []; // Keeps track of played song indexes for the "Previous" button
+        let playbackHistory = []; 
+
+        // Playback Modes: 'sequential', 'random', 'repeat'
+        const modes = ['sequential', 'random', 'repeat'];
+        const modeLabels = {
+            sequential: "➡️ Sequential",
+            random: "🔀 Random",
+            repeat: "🔁 Repeat One"
+        };
+        let currentModeIndex = 0; // Starts at Sequential
 
         // Fetch the file list from GitHub's Public API
         async function loadSongs() {
@@ -170,7 +180,6 @@
         function playSong(index, clearHistoryForward = false) {
             if (songsList.length === 0) return;
 
-            // If we are selecting a totally new song manually or via Next, log it to history
             if (clearHistoryForward && currentIndex !== -1 && currentIndex !== index) {
                 playbackHistory.push(currentIndex);
             }
@@ -192,48 +201,78 @@
             audioPlayer.src = song.download_url;
             audioPlayer.play();
 
-            // WINDOWS 10 / MOBILE MEDIA OVERLAY INTEGRATION
+            // Windows 10 & Mobile Overlay Update
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: songName,
                     artist: 'My GitHub Playlist',
-                    album: 'GitHub Pages Stream'
+                    album: modeLabels[modes[currentModeIndex]] // Shows current playback mode in Windows UI
                 });
                 updateMediaSessionHandlers();
             }
         }
 
-        function playRandomSong() {
+        // Logic handled when user or system triggers "Next"
+        function handleNextTrack() {
             if (songsList.length === 0) return;
-            const randomIndex = Math.floor(Math.random() * songsList.length);
-            playSong(randomIndex, true);
-        }
+            
+            const currentMode = modes[currentModeIndex];
 
-        function playPreviousSong() {
-            if (playbackHistory.length > 0) {
-                const prevIndex = playbackHistory.pop();
-                playSong(prevIndex, false); // false prevents re-logging history loops
+            if (currentMode === 'repeat' && currentIndex !== -1) {
+                // Repeat Current Track
+                playSong(currentIndex, false);
+            } else if (currentMode === 'random') {
+                // Play Random Track
+                const randomIndex = Math.floor(Math.random() * songsList.length);
+                playSong(randomIndex, true);
             } else {
-                // If no history, just restart current track or pick random
-                audioPlayer.currentTime = 0;
+                // Sequential Play
+                let nextIndex = currentIndex + 1;
+                if (nextIndex >= songsList.length) {
+                    nextIndex = 0; // Loop back to the first song
+                }
+                playSong(nextIndex, true);
             }
         }
 
-        // Setup Media Session Hooks for Windows 10 Overlay & Media Keys
+        function handlePrevTrack() {
+            if (playbackHistory.length > 0) {
+                const prevIndex = playbackHistory.pop();
+                playSong(prevIndex, false);
+            } else {
+                // If no history, loop back sequentially or restart track
+                let prevIndex = currentIndex - 1;
+                if (prevIndex < 0) prevIndex = songsList.length - 1;
+                playSong(prevIndex, false);
+            }
+        }
+
+        // Cycle through modes when the center button is clicked
+        function toggleMode() {
+            currentModeIndex = (currentModeIndex + 1) % modes.length;
+            const newMode = modes[currentModeIndex];
+            modeBtn.textContent = modeLabels[newMode];
+            
+            // Update Windows media layout dynamically to reflect the mode switch
+            if (currentIndex !== -1 && 'mediaSession' in navigator) {
+                navigator.mediaSession.metadata.album = modeLabels[newMode];
+            }
+        }
+
         function updateMediaSessionHandlers() {
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.setActionHandler('play', () => audioPlayer.play());
                 navigator.mediaSession.setActionHandler('pause', () => audioPlayer.pause());
-                navigator.mediaSession.setActionHandler('previoustrack', () => playPreviousSong());
-                navigator.mediaSession.setActionHandler('nexttrack', () => playRandomSong());
+                navigator.mediaSession.setActionHandler('previoustrack', () => handlePrevTrack());
+                navigator.mediaSession.setActionHandler('nexttrack', () => handleNextTrack());
             }
         }
 
-        // EVENT LISTENERS (UI Buttons)
-        audioPlayer.addEventListener('ended', () => playRandomSong());
-        shuffleBtn.addEventListener('click', () => playRandomSong());
-        nextBtn.addEventListener('click', () => playRandomSong());
-        prevBtn.addEventListener('click', () => playPreviousSong());
+        // EVENT LISTENERS
+        audioPlayer.addEventListener('ended', () => handleNextTrack());
+        modeBtn.addEventListener('click', () => toggleMode());
+        nextBtn.addEventListener('click', () => handleNextTrack());
+        prevBtn.addEventListener('click', () => handlePrevTrack());
 
         // Initialize on page load
         loadSongs();
