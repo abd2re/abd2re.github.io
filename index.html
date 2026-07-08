@@ -115,8 +115,8 @@
 
     <script>
         // CHANGE THESE TWO LINES TO MATCH YOUR GITHUB FOR IT TO AUTO-SCAN
-        const githubUsername = "abd2re";
-        const repoName = "abd2re.github.io";
+        const githubUsername = "YOUR_GITHUB_USERNAME";
+        const repoName = "YOUR_REPO_NAME";
         
         const folderPath = "music"; 
 
@@ -131,6 +131,10 @@
         let currentIndex = -1;
         let playbackHistory = []; 
 
+        // True Shuffle State Variables
+        let shuffledOrder = [];    // Holds indices in a scrambled order
+        let shuffleIndex = -1;     // Where we currently are inside the scrambled deck
+
         // Playback Modes: 'sequential', 'random', 'repeat'
         const modes = ['sequential', 'random', 'repeat'];
         const modeLabels = {
@@ -138,7 +142,7 @@
             random: "🔀 Random",
             repeat: "🔁 Repeat One"
         };
-        let currentModeIndex = 0; // Starts at Sequential
+        let currentModeIndex = 0; 
 
         // Fetch the file list from GitHub's Public API
         async function loadSongs() {
@@ -165,6 +169,8 @@
                     item.textContent = file.name.replace(/\.mp3$/i, ''); 
                     
                     item.addEventListener('click', () => {
+                        // When user manually picks a song, break out of shuffle sequence tracker
+                        shuffleIndex = -1; 
                         playSong(index, true);
                     });
                     
@@ -175,6 +181,22 @@
                 console.error(error);
                 playlistDiv.innerHTML = '<div class="track-item" style="color:red;">Error loading songs. Check settings.</div>';
             }
+        }
+
+        // Generate a completely scrambled deck of numbers
+        function generateShuffleOrder() {
+            if (songsList.length === 0) return;
+            
+            // Start with an ordered list: [0, 1, 2, 3...]
+            shuffledOrder = Array.from({length: songsList.length}, (_, i) => i);
+            
+            // Fisher-Yates Shuffle Algorithm (perfect modern scramble)
+            for (let i = shuffledOrder.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledOrder[i], shuffledOrder[j]] = [shuffledOrder[j], shuffledOrder[i]];
+            }
+            
+            shuffleIndex = 0;
         }
 
         function playSong(index, clearHistoryForward = false) {
@@ -201,59 +223,72 @@
             audioPlayer.src = song.download_url;
             audioPlayer.play();
 
-            // Windows 10 & Mobile Overlay Update
+            // Windows 10 Overlay Sync
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: songName,
                     artist: 'My GitHub Playlist',
-                    album: modeLabels[modes[currentModeIndex]] // Shows current playback mode in Windows UI
+                    album: modeLabels[modes[currentModeIndex]]
                 });
                 updateMediaSessionHandlers();
             }
         }
 
-        // Logic handled when user or system triggers "Next"
         function handleNextTrack() {
             if (songsList.length === 0) return;
             
             const currentMode = modes[currentModeIndex];
 
             if (currentMode === 'repeat' && currentIndex !== -1) {
-                // Repeat Current Track
                 playSong(currentIndex, false);
-            } else if (currentMode === 'random') {
-                // Play Random Track
-                const randomIndex = Math.floor(Math.random() * songsList.length);
-                playSong(randomIndex, true);
-            } else {
+            } 
+            else if (currentMode === 'random') {
+                // If deck isn't generated or we reached the end of our deck, re-shuffle
+                if (shuffledOrder.length !== songsList.length || shuffleIndex === -1 || shuffleIndex >= shuffledOrder.length) {
+                    generateShuffleOrder();
+                }
+                
+                const nextSongIndex = shuffledOrder[shuffleIndex];
+                shuffleIndex++; // Move pointer forward in the scrambled deck
+                playSong(nextSongIndex, true);
+            } 
+            else {
                 // Sequential Play
                 let nextIndex = currentIndex + 1;
-                if (nextIndex >= songsList.length) {
-                    nextIndex = 0; // Loop back to the first song
-                }
+                if (nextIndex >= songsList.length) nextIndex = 0;
                 playSong(nextIndex, true);
             }
         }
 
         function handlePrevTrack() {
+            // If we have back-history tracked locally, respect it
             if (playbackHistory.length > 0) {
                 const prevIndex = playbackHistory.pop();
+                
+                // If we are currently in shuffle mode, try to reverse our deck pointer as well
+                if (modes[currentModeIndex] === 'random' && shuffleIndex > 0) {
+                    shuffleIndex--;
+                }
+                
                 playSong(prevIndex, false);
             } else {
-                // If no history, loop back sequentially or restart track
+                // Fallback loop logic if history is clean
                 let prevIndex = currentIndex - 1;
                 if (prevIndex < 0) prevIndex = songsList.length - 1;
                 playSong(prevIndex, false);
             }
         }
 
-        // Cycle through modes when the center button is clicked
         function toggleMode() {
             currentModeIndex = (currentModeIndex + 1) % modes.length;
             const newMode = modes[currentModeIndex];
             modeBtn.textContent = modeLabels[newMode];
             
-            // Update Windows media layout dynamically to reflect the mode switch
+            // Force a clean card layout scramble if switching to random right now
+            if (newMode === 'random') {
+                generateShuffleOrder();
+            }
+            
             if (currentIndex !== -1 && 'mediaSession' in navigator) {
                 navigator.mediaSession.metadata.album = modeLabels[newMode];
             }
